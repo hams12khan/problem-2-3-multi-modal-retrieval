@@ -90,5 +90,5 @@ python src/main.py --mode serve --port 8000
 # Open http://localhost:8000/ui to inspect synchronized keyframes and DETR boxes
 ```
 
-*(See [ARCHITECTURE.md](ARCHITECTURE.md) for full SDK internals and [BENCHMARKS.md](BENCHMARKS.md) for 128-hour empirical validation).*
+*(See [ARCHITECTURE.md](ARCHITECTURE.md) for full SDK internals, [BENCHMARKS.md](BENCHMARKS.md) for 128-hour empirical validation, and [INTERVIEW_PREP_DEEP_DIVE.md](INTERVIEW_PREP_DEEP_DIVE.md) for a human-readable end-to-end interview & conceptual guide).*
 
