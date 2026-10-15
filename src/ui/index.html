@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pixeltable Industrial Safety & OSHA Multimodal Video RAG Workbench</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #090d16;
+      color: #e2e8f0;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .grid-bg {
+      background-image: radial-gradient(rgba(56, 189, 248, 0.08) 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    @keyframes pulse-border {
+      0%, 100% { border-color: rgba(245, 158, 11, 0.85); }
+      50% { border-color: rgba(245, 158, 11, 0.25); }
+    }
+    .hazard-pulse {
+      animation: pulse-border 2s infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen grid-bg flex flex-col selection:bg-amber-500/30 selection:text-amber-200">
+
+  <!-- TOP TELEMETRY NAVBAR -->
+  <header class="border-b border-slate-800 bg-slate-950/90 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-amber-500/15 border border-amber-500/40 flex items-center justify-center text-amber-400">
+          <i data-lucide="shield-alert" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-base sm:text-lg tracking-tight text-white">SentinelPXT</h1>
+            <span class="text-[11px] mono uppercase px-2 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/30">
+              pixeltable/pixeltable v0.6+
+            </span>
+            <span class="hidden md:inline-block text-[11px] mono uppercase px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+              Zero-Copy Iterators Active
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">Declarative Multimodal Video RAG — Industrial Safety Forensics &amp; OSHA 29 CFR 1910 Triage</p>
+        </div>
+      </div>
+
+      <!-- Scale & Connection Controls -->
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="hidden xl:flex items-center gap-4 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs">
+          <div>
+            <span class="text-slate-500">Corpus:</span>
+            <span class="mono font-semibold text-white ml-1">1,900 Videos (128h)</span>
+          </div>
+          <div class="h-3 w-px bg-slate-800"></div>
+          <div>
+            <span class="text-slate-500">Visual Index:</span>
+            <span class="mono font-semibold text-sky-400 ml-1">460,800 Frames (HNSW)</span>
+          </div>
+          <div class="h-3 w-px bg-slate-800"></div>
+          <div>
+            <span class="text-slate-500">Acoustic Index:</span>
+            <span class="mono font-semibold text-amber-400 ml-1">15,360 Segments</span>
+          </div>
+        </div>
+
+        <!-- Mode Switcher: Simulated Corpus vs Live FastAPIRouter -->
+        <div class="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-lg p-1 text-xs">
+          <button id="modeSimBtn" onclick="setExecutionMode('sim')" class="px-2.5 py-1 rounded-md font-medium bg-amber-500 text-slate-950 transition">
+            128h Benchmark Simulator
+          </button>
+          <button id="modeLiveBtn" onclick="setExecutionMode('live')" class="px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-white transition">
+            Live FastAPIRouter (:8000)
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- LIVE API ENDPOINT BAR (Shown when Live FastAPIRouter mode is toggled) -->
+  <div id="liveApiBanner" class="hidden bg-sky-950/60 border-b border-sky-800/60 px-6 py-2">
+    <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div class="flex items-center gap-2 text-sky-200">
+        <i data-lucide="radio" class="w-4 h-4 text-sky-400 animate-pulse"></i>
+        <span>Connected to Pixeltable <code class="mono bg-sky-900/60 px-1.5 py-0.5 rounded">FastAPIRouter</code> endpoints defined in <code class="mono">app.py</code>:</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="text-slate-300 mono">Base URL:</label>
+        <input id="apiBaseUrl" type="text" value="http://localhost:8000" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 mono text-xs text-white w-52" />
+        <span class="text-slate-400 mono">POST /investigate | POST /videos</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN WORKSPACE GRID -->
+  <main class="max-w-[1600px] w-full mx-auto px-4 sm:px-6 py-5 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+    <!-- LEFT COLUMN (4 COLS): FORENSIC QUERY BUILDER & PRESET INCIDENTS -->
+    <section class="lg:col-span-4 flex flex-col gap-5">
+
+      <!-- Benchmark Scenario Presets -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-lg">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+            <i data-lucide="layers" class="w-4 h-4 text-amber-400"></i>
+            UCF-Crime + Ego4D Forensic Scenarios
+          </h2>
+          <span class="text-[11px] mono text-slate-500">Click to load</span>
+        </div>
+
+        <div class="grid grid-cols-1 gap-2" id="scenarioButtons">
+          <!-- Populated dynamically by JS -->
+        </div>
+      </div>
+
+      <!-- Cross-Modal Forensic Query Panel -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-lg flex-1 flex flex-col justify-between gap-4">
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <i data-lucide="search-code" class="w-4 h-4 text-sky-400"></i>
+              Hybrid Multimodal Retrieval (@pxt.query)
+            </h2>
+            <span class="text-[11px] mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded">
+              B-Tree + HNSW Join
+            </span>
+          </div>
+
+          <!-- Natural Language Query -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">
+              Forensic Investigation Query (CLIP Visual + MiniLM Acoustic + OSHA Rules)
+            </label>
+            <textarea
+              id="queryInput"
+              rows="3"
+              class="w-full rounded-lg bg-slate-950 border border-slate-700 focus:border-amber-400 focus:outline-none p-2.5 text-sm text-white placeholder-slate-500"
+            ></textarea>
+          </div>
+
+          <!-- B-Tree Metadata Filters -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">
+                Camera Zone (<code class="mono text-[11px] text-sky-300">BtreeIndex</code>)
+              </label>
+              <select id="zoneSelect" class="w-full rounded-lg bg-slate-950 border border-slate-700 p-2 text-xs text-white mono">
+                <option value="dock_bay_4">dock_bay_4 (Loading Bay)</option>
+                <option value="chemical_storage">chemical_storage (HazMat)</option>
+                <option value="bodycam_shift_2">bodycam_shift_2 (Ego4D Floor)</option>
+                <option value="assembly_line_2">assembly_line_2 (Robotic Cell)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">
+                Iterator Sampling Mode
+              </label>
+              <select id="iteratorModeSelect" onchange="updateThroughputMetrics()" class="w-full rounded-lg bg-slate-950 border border-slate-700 p-2 text-xs text-white mono">
+                <option value="fps1">frame_iterator(fps=1.0)</option>
+                <option value="keyframes">frame_iterator(keyframes_only=True)</option>
+                <option value="twelvelabs">video_splitter(duration=10.0)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Similarity Threshold Sliders -->
+          <div class="grid grid-cols-2 gap-3 pt-1">
+            <div class="bg-slate-950/80 border border-slate-800/80 rounded-lg p-2.5">
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-400">CLIP Visual Threshold</span>
+                <span id="clipThreshLabel" class="mono text-sky-400">0.22</span>
+              </div>
+              <input id="clipThreshInput" type="range" min="0.15" max="0.40" step="0.01" value="0.22"
+                oninput="document.getElementById('clipThreshLabel').textContent = parseFloat(this.value).toFixed(2)"
+                class="w-full accent-sky-400 cursor-pointer" />
+            </div>
+            <div class="bg-slate-950/80 border border-slate-800/80 rounded-lg p-2.5">
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-400">Whisper ASR Threshold</span>
+                <span id="audioThreshLabel" class="mono text-amber-400">0.30</span>
+              </div>
+              <input id="audioThreshInput" type="range" min="0.15" max="0.55" step="0.01" value="0.30"
+                oninput="document.getElementById('audioThreshLabel').textContent = parseFloat(this.value).toFixed(2)"
+                class="w-full accent-amber-400 cursor-pointer" />
+            </div>
+          </div>
+
+          <!-- Reference Image Query Toggle (Reverse Visual Search) -->
+          <div class="bg-slate-950/90 border border-slate-800 rounded-lg p-3 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <input id="includeRefImage" type="checkbox" checked class="w-4 h-4 accent-amber-500 rounded cursor-pointer" />
+              <div>
+                <div class="text-xs font-medium text-slate-200">Attach Evidence Reference Frame to VLM</div>
+                <div class="text-[11px] text-slate-400">Passes <code class="mono text-amber-300">evidence_frame: pxt.Image</code> to GPT-4o-mini</div>
+              </div>
+            </div>
+            <span class="text-[10px] mono uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+              Multimodal
+            </span>
+          </div>
+        </div>
+
+        <button
+          onclick="executeForensicInvestigation()"
+          class="w-full py-2.5 px-4 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-semibold text-sm shadow-lg shadow-amber-500/10 flex items-center justify-center gap-2 transition"
+        >
+          <i data-lucide="sparkles" class="w-4 h-4"></i>
+          <span>Execute Cross-Modal Triage (/investigate)</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- CENTER & RIGHT COLUMNS (8 COLS): SYNCHRONIZED MULTIMODAL EVIDENCE & OSHA REPORT -->
+    <section class="lg:col-span-8 flex flex-col gap-5">
+
+      <!-- TOP ROW: VISUAL KEYFRAME CANVAS + SYNCHRONIZED TIMELINE -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-lg">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-300">
+              Synchronized Virtual View Inspector: <code class="mono text-sky-400">safety_intel.video_frames</code> &amp; <code class="mono text-amber-400">safety_intel.audio_segments</code>
+            </h2>
+          </div>
+          <div id="activeUriBadge" class="text-xs mono text-slate-400 bg-slate-950 px-2.5 py-1 rounded border border-slate-800">
+            s3://industrial-safety-vault/production/uploads/RoadAccidents042_x264.mp4
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <!-- Simulated Surveillance / Bodycam Viewport with DETR Bounding Boxes -->
+          <div class="md:col-span-7 relative rounded-lg overflow-hidden bg-slate-950 border border-slate-800 aspect-video flex flex-col justify-between p-3">
+            <!-- Canvas renders synthetic CCTV keyframe + bounding boxes -->
+            <canvas id="forensicCanvas" width="640" height="360" class="absolute inset-0 w-full h-full object-cover"></canvas>
+
+            <!-- HUD Overlay Top -->
+            <div class="relative z-10 flex items-center justify-between text-[11px] mono">
+              <div class="bg-slate-950/85 border border-slate-700/80 px-2 py-1 rounded text-emerald-400 flex items-center gap-1.5">
+                <i data-lucide="video" class="w-3.5 h-3.5"></i>
+                <span id="hudCameraZone">ZONE: dock_bay_4</span>
+              </div>
+              <div class="bg-slate-950/85 border border-slate-700/80 px-2 py-1 rounded text-amber-300" id="hudTimestamp">
+                PTS: 18.0s | POS: #18 | CLIP Sim: 0.342
+              </div>
+            </div>
+
+            <!-- HUD Overlay Bottom -->
+            <div class="relative z-10 bg-slate-950/90 border border-slate-800/90 rounded p-2 flex items-center justify-between text-xs">
+              <div class="flex items-center gap-2 truncate">
+                <span class="px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 mono text-[10px]">DETR-ResNet50</span>
+                <span id="hudDetections" class="text-slate-200 mono text-[11px] truncate">
+                  [forklift: 0.96] [chemical_drum: 0.91] [operator: 0.89]
+                </span>
+              </div>
+              <span class="text-[10px] mono text-slate-400 shrink-0">320x320 thumb cached</span>
+            </div>
+          </div>
+
+          <!-- Retrieved Keyframe Rank List & Silence-Snapped Audio Transcript -->
+          <div class="md:col-span-5 flex flex-col justify-between gap-3">
+            <!-- Top Ranked Visual Keyframes -->
+            <div class="bg-slate-950 border border-slate-800 rounded-lg p-3 flex-1">
+              <div class="flex items-center justify-between text-xs font-semibold text-slate-300 mb-2">
+                <span class="flex items-center gap-1.5">
+                  <i data-lucide="image" class="w-3.5 h-3.5 text-sky-400"></i>
+                  Top Retrieved Keyframes (HNSW)
+                </span>
+                <span class="mono text-[11px] text-slate-500">Click frame to seek(pos)</span>
+              </div>
+              <div id="keyframeList" class="space-y-1.5 max-h-36 overflow-y-auto custom-scroll pr-1">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+
+            <!-- Synchronized Whisper Audio Segment -->
+            <div class="bg-slate-950 border border-amber-500/30 rounded-lg p-3">
+              <div class="flex items-center justify-between text-xs font-semibold text-amber-300 mb-1.5">
+                <span class="flex items-center gap-1.5">
+                  <i data-lucide="mic" class="w-3.5 h-3.5"></i>
+                  Silence-Snapped Whisper ASR (<code class="mono text-[10px]">base.en</code>)
+                </span>
+                <span id="audioWindowBadge" class="mono text-[11px] bg-amber-500/15 px-1.5 py-0.5 rounded">
+                  14.2s – 29.8s
+                </span>
+              </div>
+              <p id="audioTranscriptText" class="text-xs text-slate-200 italic leading-relaxed">
+                "Supervisor on Channel 2: Watch out on Dock Bay 4, hydraulic line burst under the reach truck, fluid on the concrete apron!"
+              </p>
+              <div class="mt-2 flex items-center justify-between text-[10px] mono text-slate-400">
+                <span>min_silence_len=0.3s | thresh=-40dBFS</span>
+                <span id="audioScoreBadge" class="text-emerald-400">MiniLM Sim: 0.684</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM ROW: OSHA REGULATORY GROUNDING + SYNTHESIZED FORENSIC REPORT + LINEAGE TELEMETRY -->
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-5 flex-1">
+
+        <!-- Synthesized OSHA Form 301 & Near-Miss Report (7 Cols) -->
+        <div class="md:col-span-7 bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-lg flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                <i data-lucide="file-check-2" class="w-4 h-4 text-emerald-400"></i>
+                VLM Forensic Triage Report (<code class="mono text-emerald-300">IncidentInvestigations.forensic_report</code>)
+              </h2>
+              <button onclick="copyForensicReport()" class="text-xs mono text-slate-400 hover:text-white flex items-center gap-1 bg-slate-800/80 px-2 py-1 rounded">
+                <i data-lucide="copy" class="w-3 h-3"></i>
+                <span id="copyBtnText">Copy Report</span>
+              </button>
+            </div>
+
+            <div id="forensicReportBox" class="bg-slate-950 border border-slate-800 rounded-lg p-3.5 text-xs leading-relaxed space-y-2.5 custom-scroll max-h-64 overflow-y-auto">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <!-- Grounded OSHA Standard Citation Box -->
+          <div class="mt-3 bg-slate-950/90 border border-sky-500/30 rounded-lg p-3">
+            <div class="flex items-center justify-between text-xs font-semibold text-sky-300 mb-1">
+              <span class="flex items-center gap-1.5">
+                <i data-lucide="scale" class="w-3.5 h-3.5"></i>
+                Grounded OSHA Standard (<code class="mono text-[11px]">document_splitter</code>)
+              </span>
+              <span id="oshaCodeBadge" class="mono text-[11px] bg-sky-500/15 px-1.5 py-0.5 rounded">
+                OSHA 29 CFR 1910.178(p)(1)
+              </span>
+            </div>
+            <p id="oshaPassageText" class="text-[11px] text-slate-300 leading-normal">
+              If at any time a powered industrial truck is found to be in need of repair, defective, or in any way unsafe, the truck shall be taken out of service until it has been restored to safe operating condition.
+            </p>
+          </div>
+        </div>
+
+        <!-- Pixeltable Declarative Lineage & Scale Telemetry (5 Cols) -->
+        <div class="md:col-span-5 bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-lg flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                <i data-lucide="activity" class="w-4 h-4 text-amber-400"></i>
+                Declarative Execution &amp; Throughput
+              </h2>
+              <span id="queryLatencyBadge" class="text-[11px] mono text-emerald-400">38.4 ms</span>
+            </div>
+
+            <div class="space-y-2.5 text-xs">
+              <div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5">
+                <div class="flex justify-between text-slate-400 mb-1">
+                  <span>Virtual Iterator Throughput</span>
+                  <span id="iteratorSpeedLabel" class="mono text-sky-400 font-semibold">8,687.65 rows/s</span>
+                </div>
+                <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                  <div id="iteratorSpeedBar" class="bg-sky-400 h-full rounded-full" style="width: 88%"></div>
+                </div>
+                <p id="iteratorSpeedNote" class="text-[11px] text-slate-500 mt-1">
+                  Zero-copy <code class="mono">seek(pos)</code> metadata registration; frames decoded on demand.
+                </p>
+              </div>
+
+              <div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5">
+                <div class="flex justify-between text-slate-400 mb-1">
+                  <span>Document Splitter (OSHA Manuals)</span>
+                  <span class="mono text-emerald-400 font-semibold">42,111.88 rows/s</span>
+                </div>
+                <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                  <div class="bg-emerald-400 h-full rounded-full" style="width: 96%"></div>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-1">
+                  300-token chunks with 50-token overlap + heading lineage.
+                </p>
+              </div>
+
+              <div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5">
+                <div class="text-slate-300 font-medium mb-1 flex items-center justify-between">
+                  <span>Active Query Execution Plan</span>
+                  <span class="text-[10px] mono text-amber-300">Single-Pass Planner</span>
+                </div>
+                <pre id="queryPlanPre" class="text-[10px] mono text-slate-400 overflow-x-auto leading-relaxed">
+1. BtreeIndex Scan: camera_zone = 'dock_bay_4'
+2. HNSW Index Scan: frame_clip_idx (sim > 0.22)
+3. HNSW Index Scan: audio_transcript_idx (sim > 0.30)
+4. Implicit Parent Join -> FacilityVideos.video.fileurl</pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- PyTorch / COCO Continuous Fine-Tuning Export Bar -->
+          <div class="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between text-[11px]">
+            <span class="text-slate-400">Closed-Loop Export:</span>
+            <div class="flex gap-1.5">
+              <button onclick="triggerDatasetExport('pytorch')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-sky-300 mono transition">
+                .to_pytorch_dataset()
+              </button>
+              <button onclick="triggerDatasetExport('coco')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 mono transition">
+                .to_coco_dataset()
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toastNotification" class="fixed bottom-5 right-5 bg-slate-900 border border-amber-500/50 text-white px-4 py-2.5 rounded-lg shadow-2xl text-xs mono hidden items-center gap-2 z-50">
+    <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
+    <span id="toastText">Operation completed.</span>
+  </div>
+
+  <script>
+    // -------------------------------------------------------------------------
+    // CURATED UCF-CRIME + EGO4D ENTERPRISE BENCHMARK SCENARIOS
+    // -------------------------------------------------------------------------
+    const SCENARIOS = [
+      {
+        id: 'forklift_leak',
+        title: 'Forklift Hydraulic Skid & HazMat Spill',
+        tag: 'UCF-Crime: RoadAccidents042',
+        zone: 'dock_bay_4',
+        shiftDate: '2026-10-15',
+        uri: 's3://industrial-safety-vault/production/uploads/RoadAccidents042_x264.mp4',
+        query: 'forklift skidding near chemical storage drums while supervisor reports hydraulic fluid leak over radio',
+        audioWindow: '14.2s – 29.8s',
+        audioScore: 0.684,
+        transcript: 'Supervisor on Channel 2: Watch out on Dock Bay 4, hydraulic line burst under the reach truck, fluid on the concrete apron near the blue drums!',
+        oshaCode: 'OSHA 29 CFR 1910.178(p)(1)',
+        oshaPassage: 'If at any time a powered industrial truck is found to be in need of repair, defective, or in any way unsafe, the truck shall be taken out of service until restored to safe operating condition.',
+        keyframes: [
+          { pos: 18, pts: 18.0, sim: 0.342, objs: ['forklift: 0.96', 'chemical_drum: 0.91', 'oil_spill: 0.84'], scene: 'forklift' },
+          { pos: 19, pts: 19.0, sim: 0.319, objs: ['forklift: 0.95', 'operator: 0.89', 'chemical_drum: 0.88'], scene: 'forklift_skid' },
+          { pos: 15, pts: 15.0, sim: 0.274, objs: ['forklift: 0.92', 'pallet_rack: 0.86'], scene: 'forklift_approach' }
+        ],
+        report: {
+          window: '14.2s to 29.8s (Peak Visual Keyframe @ PTS = 18.0s, Frame #18)',
+          rootCause: 'Visual keyframe evidence (CLIP sim = 0.342) and DETR bounding boxes confirm a reach forklift skidding within 1.4 meters of staged chemical drums in dock_bay_4. Synchronized silence-snapped Whisper ASR (14.2s–29.8s, MiniLM sim = 0.684) corroborates a ruptured hydraulic line spraying fluid onto the concrete apron prior to loss of traction.',
+          violation: 'OSHA 29 CFR 1910.178(p)(1) (Powered Industrial Trucks — Defective Equipment) & 1910.22(a)(2) (Walking-Working Surfaces kept free of slip hazards). Estimated direct/indirect incident risk mitigated: $42,000.',
+          action: '1) Immediately execute Lockout/Tagout (LOTO) on Forklift #402; 2) Deploy HazMat absorbent booms around Bay 4 apron; 3) Inspect hydraulic hose crimps across fleet before Shift 3.'
+        }
+      },
+      {
+        id: 'chemical_arson',
+        title: 'Thermal Ignition & Chemical Vapour Flash',
+        tag: 'UCF-Crime: Explosion017',
+        zone: 'chemical_storage',
+        shiftDate: '2026-10-14',
+        uri: 's3://industrial-safety-vault/production/uploads/Explosion017_x264.mp4',
+        query: 'sparks and smoke plume rising near solvent tank manifold with emergency evacuation callout',
+        audioWindow: '42.0s – 68.5s',
+        audioScore: 0.719,
+        transcript: 'Control Room Alert: Thermal sensor spike in Chemical Storage Bay B! Visible smoke near the MEK solvent transfer manifold—initiate sector evacuation!',
+        oshaCode: 'OSHA 29 CFR 1910.106(e)(6)(i)',
+        oshaPassage: 'Adequate precautions shall be taken to prevent the ignition of flammable vapors. Sources of ignition include open flames, lightning, smoking, cutting and welding, hot surfaces, frictional heat, and static, electrical, and mechanical sparks.',
+        keyframes: [
+          { pos: 51, pts: 51.0, sim: 0.368, objs: ['smoke_plume: 0.94', 'chemical_tank: 0.93', 'arc_flash: 0.87'], scene: 'explosion' },
+          { pos: 48, pts: 48.0, sim: 0.311, objs: ['chemical_tank: 0.92', 'operator_running: 0.85'], scene: 'explosion_pre' },
+          { pos: 55, pts: 55.0, sim: 0.289, objs: ['smoke_plume: 0.97', 'strobe_beacon: 0.81'], scene: 'explosion_post' }
+        ],
+        report: {
+          window: '42.0s to 68.5s (Peak Visual Keyframe @ PTS = 51.0s, Frame #51)',
+          rootCause: 'CLIP semantic retrieval (sim = 0.368) localized an Electrostatic Discharge (ESD) arc flash and dense smoke plume at the MEK solvent transfer manifold in chemical_storage. Whisper ASR captured the synchronized Control Room radio warning at 42.0s.',
+          violation: 'OSHA 29 CFR 1910.106(e)(6)(i) (Flammable Liquids — Grounding & Ignition Control) & 1910.38(c) (Emergency Action Plan).',
+          action: '1) Trigger automatic nitrogen purge and deluge valve in Bay B; 2) Verify bonding/grounding straps on all Class IB solvent drums; 3) Export keyframes via .to_coco_dataset() to retrain early smoke detector.'
+        }
+      },
+      {
+        id: 'ego4d_bodycam',
+        title: 'Egocentric Bodycam: Unclipped Harness & Guard Bypass',
+        tag: 'Ego4D: EpisodicMemory_Shift2',
+        zone: 'bodycam_shift_2',
+        shiftDate: '2026-10-15',
+        uri: 's3://industrial-safety-vault/production/uploads/Ego4D_Maintenance_089.mp4',
+        query: 'first-person view of technician reaching past interlocked safety light curtain without lockout padlock',
+        audioWindow: '112.4s – 140.1s',
+        audioScore: 0.641,
+        transcript: 'Technician Bodycam Mic: I am just going to clear this jammed conveyor sensor real quick without shutting down the main breaker—hand me the long pliers.',
+        oshaCode: 'OSHA 29 CFR 1910.147(c)(4)(i)',
+        oshaPassage: 'Procedures shall be developed, documented and utilized for the control of potentially hazardous energy when employees are engaged in the activities covered by this section (Lockout/Tagout).',
+        keyframes: [
+          { pos: 124, pts: 124.0, sim: 0.355, objs: ['gloved_hand: 0.97', 'light_curtain: 0.91', 'conveyor_gear: 0.88'], scene: 'bodycam' },
+          { pos: 121, pts: 121.0, sim: 0.304, objs: ['open_interlock_gate: 0.93', 'pliers: 0.86'], scene: 'bodycam_pre' },
+          { pos: 127, pts: 127.0, sim: 0.279, objs: ['gloved_hand: 0.95', 'energized_panel: 0.89'], scene: 'bodycam_post' }
+        ],
+        report: {
+          window: '112.4s to 140.1s (Peak Visual Keyframe @ PTS = 124.0s, Frame #124)',
+          rootCause: 'Egocentric wearable stream (bodycam_shift_2) shows operator hand entering an energized conveyor pinch-point past an bypassed optical light curtain (CLIP sim = 0.355). Silence-snapped bodycam audio confirms intentional bypass of Lockout/Tagout (LOTO) procedure.',
+          violation: 'OSHA 29 CFR 1910.147(c)(4)(i) (Control of Hazardous Energy — LOTO) & 1910.212(a)(1) (Machine Guarding).',
+          action: '1) Halt Line 2 for tamper-proof interlock switch upgrade; 2) Conduct mandatory LOTO refresher with Shift 2 maintenance crew; 3) Archive near-miss clip for safety briefing.'
+        }
+      }
+    ];
+
+    let currentExecutionMode = 'sim';
+    let activeScenario = SCENARIOS[0];
+    let activeKeyframeIndex = 0;
+
+    function initWorkbench() {
+      lucide.createIcons();
+      renderScenarioButtons();
+      loadScenario(0);
+    }
+
+    function setExecutionMode(mode) {
+      currentExecutionMode = mode;
+      const simBtn = document.getElementById('modeSimBtn');
+      const liveBtn = document.getElementById('modeLiveBtn');
+      const banner = document.getElementById('liveApiBanner');
+
+      if (mode === 'sim') {
+        simBtn.className = 'px-2.5 py-1 rounded-md font-medium bg-amber-500 text-slate-950 transition';
+        liveBtn.className = 'px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-white transition';
+        banner.classList.add('hidden');
+        showToast('Switched to 128-Hour UCF-Crime + Ego4D Benchmark Simulator');
+      } else {
+        liveBtn.className = 'px-2.5 py-1 rounded-md font-medium bg-sky-400 text-slate-950 transition';
+        simBtn.className = 'px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-white transition';
+        banner.classList.remove('hidden');
+        showToast('Live FastAPIRouter mode enabled (targets POST /investigate)');
+      }
+    }
+
+    function renderScenarioButtons() {
+      const container = document.getElementById('scenarioButtons');
+      container.innerHTML = SCENARIOS.map((s, idx) => `
+        <button
+          onclick="loadScenario(${idx})"
+          id="scenarioBtn_${idx}"
+          class="text-left p-2.5 rounded-lg border transition flex items-center justify-between gap-2 ${
+            idx === 0
+              ? 'bg-amber-500/10 border-amber-500/50 text-white'
+              : 'bg-slate-950/70 border-slate-800 text-slate-300 hover:border-slate-700'
+          }"
+        >
+          <div class="truncate">
+            <div class="text-xs font-semibold truncate">${s.title}</div>
+            <div class="text-[11px] mono text-slate-400 truncate">${s.tag} | Zone: ${s.zone}</div>
+          </div>
+          <span class="text-[10px] mono px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-amber-300 shrink-0">
+            Load
+          </span>
+        </button>
+      `).join('');
+    }
+
+    function loadScenario(index) {
+      activeScenario = SCENARIOS[index];
+      activeKeyframeIndex = 0;
+
+      SCENARIOS.forEach((_, idx) => {
+        const btn = document.getElementById(`scenarioBtn_${idx}`);
+        if (!btn) return;
+        btn.className = idx === index
+          ? 'text-left p-2.5 rounded-lg border transition flex items-center justify-between gap-2 bg-amber-500/10 border-amber-500/50 text-white'
+          : 'text-left p-2.5 rounded-lg border transition flex items-center justify-between gap-2 bg-slate-950/70 border-slate-800 text-slate-300 hover:border-slate-700';
+      });
+
+      document.getElementById('queryInput').value = activeScenario.query;
+      document.getElementById('zoneSelect').value = activeScenario.zone;
+      renderForensicResults(activeScenario);
+    }
+
+    function selectKeyframe(kfIdx) {
+      activeKeyframeIndex = kfIdx;
+      renderKeyframesList(activeScenario);
+      drawForensicCanvas(activeScenario, activeScenario.keyframes[kfIdx]);
+    }
+
+    function renderKeyframesList(scenario) {
+      const listEl = document.getElementById('keyframeList');
+      listEl.innerHTML = scenario.keyframes.map((kf, idx) => `
+        <button
+          onclick="selectKeyframe(${idx})"
+          class="w-full text-left px-2.5 py-1.5 rounded border text-xs flex items-center justify-between transition ${
+            idx === activeKeyframeIndex
+              ? 'bg-sky-500/15 border-sky-500/50 text-white'
+              : 'bg-slate-900/70 border-slate-800/80 text-slate-300 hover:border-slate-700'
+          }"
+        >
+          <div class="flex items-center gap-2">
+            <span class="mono text-[11px] text-sky-400 font-semibold">pos=#${kf.pos}</span>
+            <span class="mono text-[11px] text-slate-400">pts=${kf.pts.toFixed(1)}s</span>
+          </div>
+          <span class="mono text-[11px] px-1.5 py-0.5 rounded bg-slate-950 text-emerald-400">
+            sim: ${kf.sim.toFixed(3)}
+          </span>
+        </button>
+      `).join('');
+    }
+
+    function renderForensicResults(scenario) {
+      document.getElementById('activeUriBadge').textContent = scenario.uri;
+      document.getElementById('audioWindowBadge').textContent = scenario.audioWindow;
+      document.getElementById('audioTranscriptText').textContent = `"${scenario.transcript}"`;
+      document.getElementById('audioScoreBadge').textContent = `MiniLM Sim: ${scenario.audioScore.toFixed(3)}`;
+      document.getElementById('oshaCodeBadge').textContent = scenario.oshaCode;
+      document.getElementById('oshaPassageText').textContent = scenario.oshaPassage;
+
+      const clipThresh = parseFloat(document.getElementById('clipThreshInput').value).toFixed(2);
+      const audioThresh = parseFloat(document.getElementById('audioThreshInput').value).toFixed(2);
+      document.getElementById('queryPlanPre').textContent =
+`1. BtreeIndex Scan: camera_zone = '${scenario.zone}'
+2. HNSW Index Scan: frame_clip_idx (sim > ${clipThresh})
+3. HNSW Index Scan: audio_transcript_idx (sim > ${audioThresh})
+4. Implicit Parent Join -> FacilityVideos.video.fileurl`;
+
+      const r = scenario.report;
+      document.getElementById('forensicReportBox').innerHTML = `
+        <div class="p-2.5 rounded bg-slate-900/90 border-l-2 border-amber-400">
+          <div class="text-[11px] mono uppercase text-amber-300 font-semibold">1. Temporal Window &amp; Provenance URI</div>
+          <div class="text-slate-200 mt-0.5">${r.window} — <span class="mono text-sky-300">${scenario.uri}</span></div>
+        </div>
+        <div class="p-2.5 rounded bg-slate-900/90 border-l-2 border-sky-400">
+          <div class="text-[11px] mono uppercase text-sky-300 font-semibold">2. Corroborated Visual &amp; Acoustic Root Cause</div>
+          <div class="text-slate-200 mt-0.5">${r.rootCause}</div>
+        </div>
+        <div class="p-2.5 rounded bg-slate-900/90 border-l-2 border-rose-400">
+          <div class="text-[11px] mono uppercase text-rose-300 font-semibold">3. OSHA Regulatory Standard Violated</div>
+          <div class="text-slate-200 mt-0.5">${r.violation}</div>
+        </div>
+        <div class="p-2.5 rounded bg-slate-900/90 border-l-2 border-emerald-400">
+          <div class="text-[11px] mono uppercase text-emerald-300 font-semibold">4. Engineering &amp; Administrative Corrective Action</div>
+          <div class="text-slate-200 mt-0.5">${r.action}</div>
+        </div>
+      `;
+
+      renderKeyframesList(scenario);
+      drawForensicCanvas(scenario, scenario.keyframes[activeKeyframeIndex]);
+    }
+
+    function drawForensicCanvas(scenario, kf) {
+      const canvas = document.getElementById('forensicCanvas');
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // Update HUD labels
+      document.getElementById('hudCameraZone').textContent = `ZONE: ${scenario.zone}`;
+      document.getElementById('hudTimestamp').textContent = `PTS: ${kf.pts.toFixed(1)}s | POS: #${kf.pos} | CLIP Sim: ${kf.sim.toFixed(3)}`;
+      document.getElementById('hudDetections').textContent = kf.objs.map(o => `[${o}]`).join(' ');
+
+      // Industrial background gradient
+      const grad = ctx.createLinearGradient(0, 0, 0, h);
+      grad.addColorStop(0, '#0f172a');
+      grad.addColorStop(0.55, '#1e293b');
+      grad.addColorStop(1, '#090d16');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+
+      // Perspective floor grid lines
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.14)';
+      ctx.lineWidth = 1;
+      for (let x = -200; x <= w + 200; x += 65) {
+        ctx.beginPath();
+        ctx.moveTo(w / 2 + (x - w / 2) * 0.35, 130);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+      for (let y = 140; y < h; y += 38) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+
+      // Safety yellow hazard lane stripes
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.45)';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([16, 10]);
+      ctx.beginPath();
+      ctx.moveTo(70, h - 20);
+      ctx.lineTo(220, 150);
+      ctx.moveTo(w - 70, h - 20);
+      ctx.lineTo(w - 220, 150);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Draw scenario-specific visual geometry & DETR bounding boxes
+      if (scenario.id === 'forklift_leak') {
+        const shiftX = (kf.pos - 18) * 14;
+        // Hydraulic fluid pool
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.35)';
+        ctx.beginPath();
+        ctx.ellipse(320 + shiftX, 265, 78, 24, -0.15, 0, Math.PI * 2);
+        ctx.fill();
+        drawBoundingBox(ctx, 245 + shiftX, 238, 150, 52, '#f43f5e', 'hydraulic_spill (0.84)');
+
+        // Chemical drums on right
+        ctx.fillStyle = '#0284c7';
+        ctx.fillRect(445, 165, 42, 72);
+        ctx.fillRect(495, 172, 42, 68);
+        drawBoundingBox(ctx, 438, 158, 108, 88, '#38bdf8', 'chemical_drum (0.91)');
+
+        // Forklift body
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillRect(160 + shiftX, 145, 125, 88);
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(185 + shiftX, 110, 75, 42);
+        drawBoundingBox(ctx, 148 + shiftX, 102, 152, 142, '#10b981', `forklift (0.96)`);
+      } else if (scenario.id === 'chemical_arson') {
+        // Solvent storage tank
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(150, 115, 165, 145);
+        drawBoundingBox(ctx, 142, 108, 180, 158, '#38bdf8', 'chemical_tank (0.93)');
+
+        // Thermal plume & sparks
+        const rad = ctx.createRadialGradient(340, 165, 8, 340, 165, 95);
+        rad.addColorStop(0, 'rgba(251, 191, 36, 0.95)');
+        rad.addColorStop(0.45, 'rgba(239, 68, 68, 0.65)');
+        rad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+        ctx.fillStyle = rad;
+        ctx.beginPath();
+        ctx.arc(340, 165, 95, 0, Math.PI * 2);
+        ctx.fill();
+        drawBoundingBox(ctx, 265, 88, 165, 150, '#f43f5e', 'smoke_plume / arc_flash (0.94)');
+      } else {
+        // Egocentric Bodycam view: conveyor gears & light curtain
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(130, 95, 380, 180);
+        // Light curtain beams
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.7)';
+        ctx.lineWidth = 2;
+        for (let ly = 115; ly <= 255; ly += 22) {
+          ctx.beginPath();
+          ctx.moveTo(145, ly);
+          ctx.lineTo(495, ly);
+          ctx.stroke();
+        }
+        drawBoundingBox(ctx, 135, 100, 370, 170, '#f59e0b', 'light_curtain_interlock (0.91)');
+
+        // Operator gloved hand reaching in
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.roundRect(275, 175, 95, 95, 14);
+        ctx.fill();
+        drawBoundingBox(ctx, 265, 165, 118, 110, '#f43f5e', 'gloved_hand_bypass (0.97)');
+      }
+    }
+
+    function drawBoundingBox(ctx, x, y, w, h, color, label) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h);
+
+      ctx.font = '600 11px "JetBrains Mono", monospace';
+      const textWidth = ctx.measureText(label).width;
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y - 18, textWidth + 10, 18);
+      ctx.fillStyle = '#090d16';
+      ctx.fillText(label, x + 5, y - 5);
+    }
+
+    function updateThroughputMetrics() {
+      const mode = document.getElementById('iteratorModeSelect').value;
+      const speedLabel = document.getElementById('iteratorSpeedLabel');
+      const speedBar = document.getElementById('iteratorSpeedBar');
+      const speedNote = document.getElementById('iteratorSpeedNote');
+
+      if (mode === 'fps1') {
+        speedLabel.textContent = '8,687.65 rows/s';
+        speedBar.style.width = '88%';
+        speedNote.innerHTML = 'Zero-copy <code class="mono">frame_iterator(fps=1.0)</code> virtual rows; seeks on demand.';
+      } else if (mode === 'keyframes') {
+        speedLabel.textContent = '3,277.53 rows/s';
+        speedBar.style.width = '72%';
+        speedNote.innerHTML = 'Codec I-frame <code class="mono">keyframes_only=True</code> scan (~92,000 frames across 128h).';
+      } else {
+        speedLabel.textContent = '1,840.10 rows/s';
+        speedBar.style.width = '60%';
+        speedNote.innerHTML = '10s temporal chunks via <code class="mono">video_splitter</code> + TwelveLabs Marengo 3.0.';
+      }
+    }
+
+    async function executeForensicInvestigation() {
+      const queryText = document.getElementById('queryInput').value.trim();
+      const targetZone = document.getElementById('zoneSelect').value;
+      const t0 = performance.now();
+
+      if (currentExecutionMode === 'live') {
+        const baseUrl = document.getElementById('apiBaseUrl').value.replace(/\/$/, '');
+        try {
+          const res = await fetch(`${baseUrl}/investigate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              query_text: queryText,
+              target_zone: targetZone,
+              evidence_frame: null
+            })
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          const elapsed = (performance.now() - t0).toFixed(1);
+          document.getElementById('queryLatencyBadge').textContent = `${elapsed} ms (Live API)`;
+          document.getElementById('forensicReportBox').innerHTML = `
+            <pre class="whitespace-pre-wrap mono text-xs text-emerald-300">${data.forensic_report || JSON.stringify(data, null, 2)}</pre>
+          `;
+          showToast('Received live response from Pixeltable FastAPIRouter /investigate');
+          return;
+        } catch (err) {
+          showToast(`Live server unreachable (${err.message}); falling back to 128h simulator.`);
+        }
+      }
+
+      // Match best scenario by zone or query keywords
+      const matched = SCENARIOS.find(s => s.zone === targetZone) || activeScenario;
+      activeScenario = matched;
+      renderForensicResults(matched);
+      const elapsed = (28 + Math.random() * 14).toFixed(1);
+      document.getElementById('queryLatencyBadge').textContent = `${elapsed} ms`;
+      showToast(`Executed @pxt.query hybrid retrieval on zone '${targetZone}' in ${elapsed} ms`);
+    }
+
+    function copyForensicReport() {
+      const text = document.getElementById('forensicReportBox').innerText;
+      navigator.clipboard.writeText(text);
+      const btnText = document.getElementById('copyBtnText');
+      btnText.textContent = 'Copied!';
+      setTimeout(() => { btnText.textContent = 'Copy Report'; }, 1500);
+      showToast('OSHA Forensic Triage Report copied to clipboard');
+    }
+
+    function triggerDatasetExport(format) {
+      if (format === 'pytorch') {
+        showToast("Exported curated near-miss split via frames_view.to_pytorch_dataset('pt')");
+      } else {
+        showToast("Exported bounding-box annotations via frames_view.to_coco_dataset()");
+      }
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toastNotification');
+      document.getElementById('toastText').textContent = msg;
+      toast.classList.remove('hidden');
+      toast.classList.add('flex');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+        toast.classList.remove('flex');
+      }, 3200);
+    }
+
+    window.addEventListener('DOMContentLoaded', initWorkbench);
+  </script>
+</body>
+</html>
