@@ -116,9 +116,7 @@ Aintropy-ASS-2/
 │       ├── synthetic_data.py          # Built-in sample video/audio/OSHA generator
 │       └── export.py                  # Closed-loop PyTorch (.to_pytorch_dataset) and COCO exporter
 ├── docs/                              # Write-up and technical documentation
-│   ├── README.md                      # Executive Evaluation Write-up (<= 2 pages equivalent)
-│   ├── ARCHITECTURE.md                # Declarative Multimodal Video RAG deep-dive
-│   └── BENCHMARKS.md                  # 128-hour UCF-Crime & Ego4D throughput & latency metrics
+│   └── README.md                      # Executive Evaluation Write-up (<= 2 pages equivalent)
 └── tests/                             # Automated test suite
     ├── __init__.py
     ├── test_cli.py                    # Test CLI commands and exit codes
@@ -192,8 +190,5 @@ The workbench features:
 
 ### 7. Documentation Index
 * **[docs/README.md](docs/README.md):** Executive evaluation write-up adhering to the $\le 2$-page guideline.
-* **[docs/INTERVIEW_PREP_DEEP_DIVE.md](docs/INTERVIEW_PREP_DEEP_DIVE.md):** Comprehensive human-written interview & conceptual guide with top 10 interview Q&As.
-* **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md):** Technical deep-dive on Pixeltable internals, zero-copy iterators, and hybrid querying.
-* **[docs/BENCHMARKS.md](docs/BENCHMARKS.md):** 128-hour UCF-Crime & Ego4D throughput, latency, and memory metrics.
 
 

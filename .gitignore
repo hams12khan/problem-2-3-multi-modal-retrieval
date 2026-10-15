@@ -64,3 +64,6 @@ Desktop.ini
 .agents/
 .gemini/
 
+# Personal local interview preparation materials (not committed to remote repo)
+local_interview_prep/
+
